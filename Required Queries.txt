@@ -1,0 +1,156 @@
+CREATE DATABASE SD32-Company
+ON PRIMARY
+(NAME = 'Primary',
+FILENAME = 'C:\Path\To\Primary.mdf',
+SIZE = 100MB,
+MAXSIZE = 500MB,
+FILEGROWTH = 10%)
+LOG ON
+(NAME = 'SD30-Company-Log',
+FILENAME = 'C:\Path\To\Log.ldf',
+SIZE = 50MB,
+MAXSIZE = 400MB,
+FILEGROWTH = 20%)
+GO
+
+
+-- Department Table
+CREATE TABLE Department (
+    DeptNo CHAR(2) PRIMARY KEY,
+    DeptName VARCHAR(50),
+    Location loc
+)
+
+-- Employee Table
+CREATE TABLE Employee (
+    EmpNo INT PRIMARY KEY,
+    EmpFname VARCHAR(50) NOT NULL,
+    EmpLname VARCHAR(50) NOT NULL,
+    DeptNo CHAR(2) FOREIGN KEY REFERENCES Department(DeptNo),
+    Salary DECIMAL(10, 2),
+    CONSTRAINT CK_Salary CHECK (Salary < 6000)
+)
+
+-- Project Table
+CREATE TABLE Project (
+    ProjectNo CHAR(2) PRIMARY KEY,
+    ProjectName VARCHAR(50) NOT NULL,
+    Budget DECIMAL(15, 2)
+)
+
+-- Works_on Table
+CREATE TABLE Works_on (
+    EmpNo INT NOT NULL,
+    ProjectNo CHAR(2) NOT NULL,
+    Job VARCHAR(50),
+    Enter_Date DATE DEFAULT GETDATE(),
+    PRIMARY KEY (EmpNo, ProjectNo),
+    FOREIGN KEY (EmpNo) REFERENCES Employee(EmpNo),
+    FOREIGN KEY (ProjectNo) REFERENCES Project(ProjectNo)
+)
+
+
+
+-- Creating User-Defined Data Type
+CREATE TYPE loc FROM nchar(2) NOT NULL ;
+GO
+
+-- Creating Rule for User-Defined Data Type
+CREATE RULE loc_rule AS @loc IN ('NY', 'DS', 'KW');
+GO
+
+-- Binding Rule to User-Defined Data Type
+EXEC sp_bindrule 'loc_rule', 'loc';
+GO
+
+
+
+-- Adding TelephoneNumber column
+ALTER TABLE Employee
+ADD TelephoneNumber VARCHAR(20);
+
+-- Dropping TelephoneNumber column
+ALTER TABLE Employee
+DROP COLUMN TelephoneNumber;
+
+
+
+
+
+
+-- Creating Company Schema and transferring Department and Project tables
+CREATE SCHEMA Company;
+ALTER SCHEMA Company TRANSFER Department;
+ALTER SCHEMA Company TRANSFER Project;
+
+-- Creating Human Resource Schema and transferring Employee table
+CREATE SCHEMA [Human Resource];
+ALTER SCHEMA [Human Resource] TRANSFER Employee;
+
+
+
+
+
+CREATE SYNONYM Emp FOR [Human Resource].Employee;
+
+
+
+
+
+UPDATE Project
+SET Budget = Budget * 1.1
+WHERE ProjectNo IN (
+    SELECT ProjectNo
+    FROM Works_on
+    WHERE Job = 'Manager' AND EmpNo = 10102
+);
+
+
+
+
+
+UPDATE Department
+SET DeptName = 'Sales'
+WHERE DeptNo = (
+    SELECT DeptNo
+    FROM Employee
+    WHERE EmpFname = 'James'
+);
+
+
+
+
+
+UPDATE Works_on
+SET Enter_Date = '2007-12-12'
+WHERE ProjectNo IN (
+    SELECT ProjectNo
+    FROM Works_on
+    WHERE EmpNo IN (
+        SELECT EmpNo
+        FROM Employee
+        WHERE DeptNo IN (
+            SELECT DeptNo
+            FROM Department
+            WHERE DeptName = 'Sales'
+        )
+    )
+    AND ProjectNo = 'p1'
+);
+
+
+
+
+
+
+
+DELETE FROM Works_on
+WHERE EmpNo IN (
+    SELECT EmpNo
+    FROM Employee
+    WHERE DeptNo IN (
+        SELECT DeptNo
+        FROM Department
+        WHERE Location = 'KW'
+    )
+);
